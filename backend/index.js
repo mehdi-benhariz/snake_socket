@@ -21,7 +21,7 @@ const state = {};
 const clientRooms = {};
 
 //on clicking on any key
-const handleKeydown = (keyCode) => {
+const handleKeydown = (client,keyCode) => {
   const roomName = clientRooms[client.id];
   if (!roomName) return;
   try {
@@ -38,7 +38,7 @@ const handleKeydown = (keyCode) => {
   
 }
 
-const handleJoinGame = (roomName) => {
+const handleJoinGame = (client,roomName) => {
   const room = io.sockets.adapter.rooms[roomName];
 
   let allUsers;
@@ -64,7 +64,7 @@ const handleJoinGame = (roomName) => {
   startGameInterval(roomName);
 };
 //starting a new game
-const handleNewGame = () => {
+const handleNewGame = (client) => {
   let roomName = makeid(5);
   clientRooms[client.id] = roomName;
   client.emit("gameCode", roomName);
@@ -79,9 +79,9 @@ const handleNewGame = () => {
 
 io.on("connection", (client) => {
   console.log("connect")
-  client.on("keydown", handleKeydown);
-  client.on("newGame", handleNewGame);
-  client.on("joinGame", handleJoinGame);  
+  client.on("keydown",(keyCode)=> handleKeydown(client,keyCode));
+  client.on("newGame",()=> handleNewGame(client));
+  client.on("joinGame",(roomName)=> handleJoinGame(client,roomName));  
 
   client.on('disconnect', () => {
     console.log("disconnect")
@@ -92,9 +92,9 @@ const startGameInterval = (roomName) => {
   const intervalId = setInterval(() => {
     const winner = gameLoop(state[roomName]);
 
-    if (!winner) {
+    if (!winner) 
       emitGameState(roomName, state[roomName]);
-    } else {
+     else {
       emitGameOver(roomName, winner);
       state[roomName] = null;
       clearInterval(intervalId);
@@ -104,11 +104,13 @@ const startGameInterval = (roomName) => {
 
 const emitGameState = (room, gameState) => {
   // Send this event to everyone in the room.
-  io.sockets.in(room).emit("gameState", JSON.stringify(gameState));
+  io.sockets.in(room)
+  .emit("gameState", JSON.stringify(gameState));
 };
 
 const emitGameOver = (room, winner) => {
-  io.sockets.in(room).emit("gameOver", JSON.stringify({ winner }));
+  io.sockets.in(room)
+    .emit("gameOver", JSON.stringify({ winner }));
 };
 
 server.listen(port, () =>
