@@ -13,7 +13,8 @@ require("dotenv").config({
 const server = require("http").Server(app);
 const io = require("socket.io")(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin:[ "http://localhost:3000","http://127.0.0.1:5500"],
+    // origin:"http://127.0.0.1:5500",
     credentials: true,
   },
 });
@@ -37,6 +38,34 @@ const handleKeydown = (client,keyCode) => {
     state[roomName].players[client.number - 1].vel = vel;
   
 }
+const emitGameState = (room, gameState) => {
+  // Send this event to everyone in the room.
+  io.sockets.in(room)
+  .emit("gameState", JSON.stringify(gameState));
+  console.log("sending game state")
+};
+
+const emitGameOver = (room, winner) => {
+  io.sockets.in(room)
+    .emit("gameOver", JSON.stringify({ winner }));
+};
+
+//start the game interval of time
+const startGameInterval = (roomName) => {
+  console.log("start game interval")
+
+  const intervalId = setInterval(() => {
+    const winner = gameLoop(state[roomName]);
+
+    if (!winner) 
+      emitGameState(roomName, state[roomName]);
+     else {
+      emitGameOver(roomName, winner);
+      state[roomName] = null;
+      clearInterval(intervalId);
+    }
+  }, 1000 / FRAME_RATE);
+};
 
 const handleJoinGame = (client,roomName) => {
   const room = io.sockets.adapter.rooms[roomName];
@@ -60,7 +89,6 @@ const handleJoinGame = (client,roomName) => {
   client.join(roomName);
   client.number = 2;
   client.emit("init", 2);
-
   startGameInterval(roomName);
 };
 //starting a new game
@@ -82,36 +110,12 @@ io.on("connection", (client) => {
   client.on("keydown",(keyCode)=> handleKeydown(client,keyCode));
   client.on("newGame",()=> handleNewGame(client));
   client.on("joinGame",(roomName)=> handleJoinGame(client,roomName));  
-
   client.on('disconnect', () => {
     console.log("disconnect")
   });
 });
 
-const startGameInterval = (roomName) => {
-  const intervalId = setInterval(() => {
-    const winner = gameLoop(state[roomName]);
 
-    if (!winner) 
-      emitGameState(roomName, state[roomName]);
-     else {
-      emitGameOver(roomName, winner);
-      state[roomName] = null;
-      clearInterval(intervalId);
-    }
-  }, 1000 / FRAME_RATE);
-};
-
-const emitGameState = (room, gameState) => {
-  // Send this event to everyone in the room.
-  io.sockets.in(room)
-  .emit("gameState", JSON.stringify(gameState));
-};
-
-const emitGameOver = (room, winner) => {
-  io.sockets.in(room)
-    .emit("gameOver", JSON.stringify({ winner }));
-};
 
 server.listen(port, () =>
   console.log(`Example app listening on port ${port}!`)

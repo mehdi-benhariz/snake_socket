@@ -10,10 +10,22 @@ const GameBoard = () => {
   let gameActive = false;
   let gridsize;
   //init the screen
-  socket.on("init", (number) => (playerNumber = number));
+  socket.on("init", (number) =>{ 
+    playerNumber = number
+    console.log("init")
+   for(var i =0;i<6;i++){
+     var row = []
+     for(var j=0;i<6;j++)
+      row.push("")
+    setrows([...rows,row])
+   }
+ console.log(rows)
+  }
+  );
 
   //get current state
   const handleGameState = (gameState) => {
+    console.log("game state")
     if (!gameActive) return;
     gameState = JSON.parse(gameState);
     requestAnimationFrame(() => {
@@ -30,9 +42,11 @@ const GameBoard = () => {
     if (data.winner === playerNumber) alert("You Win!");
     else alert("You Lose :(");
   };
-
+  socket.on("gameState", handleGameState);
+  socket.on("gameOver", handleGameOver);
   //on key down
   const keydown = (e) => {
+    console.log(e.keyCode)
     socket.emit("keydown", e.keyCode);
     socket.on("gameState", handleGameState);
     socket.on("gameOver", handleGameOver);
@@ -40,21 +54,17 @@ const GameBoard = () => {
 
   //setting the event listener
   useEffect(() => {
-    document.addEventListener("keydown", keydown, false);
+    document.addEventListener("keydown", keydown,false);
 
     return () => {
-      document.removeEventListener("keydown", keydown, false);
+      document.removeEventListener("keydown", keydown);
     };
-  }, [canvas]);
+  },[]);
   //the screen
   const displayRows = rows.map((row) => (
     <li>
       {row.map((e) => {
         switch (e) {
-          case "blank":
-            return (
-              <div class="bg-gray-500" height={gridsize} width={gridsize} />
-            );
           case "snake2":
             return (
               <div class="bg-red-500" height={gridsize} width={gridsize} />
@@ -67,6 +77,10 @@ const GameBoard = () => {
             return (
               <div class="bg-green-500" height={gridsize} width={gridsize} />
             );
+            default:
+              return (
+                <div class="bg-gray-500" height={gridsize} width={gridsize} />
+              );
         }
       })}
     </li>
